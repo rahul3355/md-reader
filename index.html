@@ -3,8 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>MD Reader</title>
+<title>.md file viewer</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90' fill='%23de7356'>></text></svg>">
 <script src="https://cdn.jsdelivr.net/npm/marked@15.0.7/marked.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -87,28 +89,30 @@
   }
 
   #sidebar-header {
-    padding: 18px 16px 14px;
+    padding: 10px 16px;
     border-bottom: 1px solid rgba(255,255,255,.06);
     flex-shrink: 0;
   }
 
-  #sidebar-header .logo {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 17px;
-    font-weight: 600;
-    color: #fff;
-    letter-spacing: -.2px;
+  .sidebar-title {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-sidebar-dim);
   }
 
-  #sidebar-header .logo svg { width: 22px; height: 22px; }
+  .mascot {
+    display: flex;
+    align-items: center;
+    padding: 8px 16px 2px;
+    flex-shrink: 0;
+  }
 
-  #sidebar-header .sub {
-    font-size: 12px;
-    color: var(--text-sidebar-dim);
-    margin-top: 4px;
-    padding-left: 30px;
+  .mascot-face {
+    font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+    font-size: 15px;
+    font-weight: 700;
+    color: #de7356;
+    letter-spacing: .5px;
   }
 
   #file-list {
@@ -392,7 +396,7 @@
   #content ul, #content ol { margin: 12px 0; padding-left: 26px; }
   #content li { margin: 5px 0; }
   #content code { background: var(--code-bg); padding: 2px 7px; border-radius: 5px; font-size: .88em; color: var(--code-color); font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace; transition: background var(--transition-theme), color var(--transition-theme); }
-  #content pre { background: var(--pre-bg); color: var(--pre-color); padding: 22px 24px; border-radius: 8px; overflow-x: auto; margin: 20px 0; font-size: 14px; line-height: 1.6; transition: background var(--transition-theme), color var(--transition-theme); }
+  #content pre { background: #2D2A2E; color: #FCFCFA; padding: 22px 24px; border-radius: 8px; overflow-x: auto; margin: 20px 0; font-size: 14px; line-height: 1.6; }
   #content pre code { background: none; color: inherit; padding: 0; font-size: inherit; border-radius: 0; }
   #content blockquote { border-left: 3px solid var(--accent); padding: 2px 20px; margin: 16px 0; background: var(--blockquote-bg); color: var(--blockquote-color); border-radius: 0 4px 4px 0; transition: background var(--transition-theme), color var(--transition-theme); }
   #content blockquote p { margin: 8px 0; }
@@ -412,6 +416,102 @@
     from { opacity: .5; transform: translateY(4px); }
     to { opacity: 1; transform: translateY(0); }
   }
+
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,.5);
+    z-index: 200;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .2s;
+  }
+  .modal-overlay.open {
+    opacity: 1;
+    pointer-events: auto;
+  }
+  .modal-card {
+    background: var(--bg-card);
+    border-radius: var(--radius);
+    box-shadow: 0 8px 32px rgba(0,0,0,.25);
+    width: 90%;
+    max-width: 560px;
+    max-height: 80vh;
+    display: flex;
+    flex-direction: column;
+    transition: background var(--transition-theme);
+  }
+  .modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border-light);
+    transition: border-color var(--transition-theme);
+  }
+  .modal-header h3 { font-size: 16px; font-weight: 600; color: var(--text-heading); margin: 0; transition: color var(--transition-theme); }
+  .modal-close-btn {
+    background: none;
+    border: none;
+    font-size: 22px;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 0 4px;
+    line-height: 1;
+  }
+  .modal-close-btn:hover { color: var(--text-primary); }
+  .modal-body {
+    padding: 16px 20px;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    overflow: hidden;
+  }
+  .modal-input {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid var(--border-light);
+    border-radius: 6px;
+    font-size: 14px;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    transition: border-color .15s, background var(--transition-theme), color var(--transition-theme);
+  }
+  .modal-input:focus {
+    border-color: var(--accent);
+    outline: none;
+  }
+  .modal-textarea {
+    width: 100%;
+    flex: 1;
+    min-height: 200px;
+    padding: 12px;
+    border: 1px solid var(--border-light);
+    border-radius: 6px;
+    font-size: 14px;
+    font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    resize: vertical;
+    transition: border-color .15s, background var(--transition-theme), color var(--transition-theme);
+  }
+  .modal-textarea:focus {
+    border-color: var(--accent);
+    outline: none;
+  }
+  .modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    padding: 12px 20px;
+    border-top: 1px solid var(--border-light);
+    transition: border-color var(--transition-theme);
+  }
+  .modal-footer .btn { width: auto; }
 
   ::-webkit-scrollbar { width: 8px; }
   ::-webkit-scrollbar-track { background: transparent; }
@@ -532,6 +632,48 @@
     #content table { font-size: 13px; }
     #content th, #content td { padding: 7px 10px; }
   }
+.hljs { background: #2D2A2E; color: #FCFCFA; }
+#content pre code.hljs { background: #2D2A2E; color: #FCFCFA; padding: 0; font-size: inherit; border-radius: 0; }
+.hljs-keyword { color: #FF6188; }
+.hljs-built_in { color: #FF6188; }
+.hljs-type { color: #AB9DF2; }
+.hljs-literal { color: #FC9867; }
+.hljs-number { color: #FC9867; }
+.hljs-operator { color: #FCFCFA; }
+.hljs-punctuation { color: #FCFCFA; }
+.hljs-property { color: #FFD866; }
+.hljs-regexp { color: #FFD866; }
+.hljs-string { color: #A9DC76; }
+.hljs-char.escape_ { color: #FF6188; }
+.hljs-subst { color: #FCFCFA; }
+.hljs-symbol { color: #78DCE8; }
+.hljs-variable { color: #78DCE8; }
+.hljs-variable.language_ { color: #FF6188; }
+.hljs-variable.constant_ { color: #AB9DF2; }
+.hljs-title { color: #78DCE8; }
+.hljs-title.class_ { color: #FFD866; }
+.hljs-title.function_ { color: #78DCE8; }
+.hljs-params { color: #FCFCFA; }
+.hljs-comment { color: #727072; }
+.hljs-doctag { color: #727072; }
+.hljs-meta { color: #727072; }
+.hljs-meta.keyword_ { color: #FF6188; }
+.hljs-meta.string_ { color: #A9DC76; }
+.hljs-section { color: #FFD866; }
+.hljs-tag { color: #FF6188; }
+.hljs-name { color: #FF6188; }
+.hljs-attr { color: #FFD866; }
+.hljs-attribute { color: #FFD866; }
+.hljs-selector-tag { color: #FF6188; }
+.hljs-selector-id { color: #FC9867; }
+.hljs-selector-class { color: #FFD866; }
+.hljs-selector-pseudo { color: #FFD866; }
+.hljs-template-tag { color: #FC9867; }
+.hljs-template-variable { color: #FF6188; }
+.hljs-addition { color: #A9DC76; }
+.hljs-deletion { color: #FF6188; }
+.hljs-emphasis { font-style: italic; }
+.hljs-strong { font-weight: bold; }
 </style>
 </head>
 <body>
@@ -547,17 +689,10 @@
 <div class="sidebar-backdrop" id="sidebar-backdrop"></div>
 <div id="sidebar">
   <div id="sidebar-header">
-    <div class="logo">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-        <polyline points="14 2 14 8 20 8"/>
-        <line x1="16" y1="13" x2="8" y2="13"/>
-        <line x1="16" y1="17" x2="8" y2="17"/>
-        <polyline points="10 9 9 9 8 9"/>
-      </svg>
-      MD Reader
-    </div>
-    <div class="sub">Markdown file viewer</div>
+    <div class="sidebar-title">Markdown file viewer</div>
+  </div>
+  <div class="mascot" id="mascot">
+    <span class="mascot-face" id="mascot-face">(•‿•)</span>
   </div>
   <div id="file-list" role="listbox" aria-label="Loaded files"></div>
   <div id="sidebar-actions">
@@ -571,6 +706,10 @@
     <button class="btn btn-primary" id="load-btn" type="button">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
       Load files
+    </button>
+    <button class="btn btn-secondary" id="paste-btn" type="button">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/></svg>
+      Paste .md code
     </button>
     <div class="btn-row">
       <button class="btn btn-secondary" id="clear-btn" type="button">Clear all</button>
@@ -592,6 +731,24 @@
   </div>
   <div id="content"></div>
 </div>
+
+<div class="modal-overlay" id="paste-modal">
+  <div class="modal-card">
+    <div class="modal-header">
+      <h3>Paste Markdown</h3>
+      <button class="modal-close-btn" id="modal-close">&times;</button>
+    </div>
+    <div class="modal-body">
+      <input type="text" class="modal-input" id="paste-name" placeholder="File name (optional)">
+      <textarea class="modal-textarea" id="paste-textarea" placeholder="Paste your Markdown code here..."></textarea>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" id="modal-cancel">Cancel</button>
+      <button class="btn btn-primary" id="modal-add">Add</button>
+    </div>
+  </div>
+</div>
+
 <script>
   const EMPTY_STATE_HTML = '<div class="empty-state"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></div>';
 
@@ -665,6 +822,7 @@
         sidebar.render();
         saveSession();
         if (files.length === 1) selectFile(0);
+        mascot.set(mascot.states.success);
       };
       reader.readAsText(file);
     }
@@ -688,6 +846,7 @@
     showContent();
     content.classList.remove('fade-in');
     content.innerHTML = marked.parse(f.content);
+    content.querySelectorAll('pre code').forEach(el => hljs.highlightElement(el));
     content.offsetWidth;
     content.classList.add('fade-in');
     sidebar.render();
@@ -710,6 +869,7 @@
       sidebar.render();
     }
     saveSession();
+    mascot.set(mascot.states.delete);
   }
 
   function clearAll() {
@@ -720,6 +880,7 @@
     sidebar.render();
     saveSession();
     localStorage.removeItem(STORAGE_KEY);
+    mascot.set(mascot.states.error);
   }
 
   const sidebar = {
@@ -808,6 +969,7 @@
         document.documentElement.setAttribute('data-theme', 'dark');
         localStorage.setItem('md-reader-theme', 'dark');
       }
+      mascot.set(mascot.states.darkmode);
     }
   };
 
@@ -843,10 +1005,101 @@
     saveSession();
   });
 
+  const pasteModal = $('paste-modal');
+  const pasteTextarea = $('paste-textarea');
+  const pasteName = $('paste-name');
+  const pasteBtn = $('paste-btn');
+  const modalAdd = $('modal-add');
+  const modalCancel = $('modal-cancel');
+  const modalClose = $('modal-close');
+  let pasteCounter = 0;
+
+  function openPasteModal() {
+    pasteTextarea.value = '';
+    pasteName.value = '';
+    pasteModal.classList.add('open');
+    pasteTextarea.focus();
+  }
+
+  function closePasteModal() {
+    pasteModal.classList.remove('open');
+  }
+
+  function addPastedContent() {
+    const content = pasteTextarea.value.trim();
+    if (!content) return;
+    const name = pasteName.value.trim() || 'Pasted ' + (++pasteCounter);
+    files.push({ name, content });
+    closePasteModal();
+    showContent();
+    selectFile(files.length - 1);
+    sidebar.render();
+    saveSession();
+    if (content.length > 500) mascot.set(mascot.states.big);
+    else mascot.set(mascot.states.success);
+  }
+
+  pasteBtn.addEventListener('click', openPasteModal);
+  modalAdd.addEventListener('click', addPastedContent);
+  modalCancel.addEventListener('click', closePasteModal);
+  modalClose.addEventListener('click', closePasteModal);
+  pasteModal.addEventListener('click', e => { if (e.target === pasteModal) closePasteModal(); });
+  pasteTextarea.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && e.ctrlKey) addPastedContent();
+  });
+  pasteName.addEventListener('keydown', e => {
+    if (e.key === 'Enter') addPastedContent();
+  });
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && pasteModal.classList.contains('open')) closePasteModal();
+  });
+
+  const mascotFace = $('mascot-face');
+  let mascotTimer = null;
+
+  const mascot = {
+    states: {
+      idle: "(•‿•)",
+      loading: "( •_•)...",
+      success: "ヽ(•‿•)ノ",
+      error: "(╥﹏╥)",
+      thinking: "( •-• )",
+      delete: "(⊙_⊙)",
+      big: "(☉_☉)",
+      darkmode: "(⌐■_■)",
+      celebrate: "ᕕ( ᐛ )ᕗ",
+    },
+    set(state) {
+      if (mascotTimer) clearTimeout(mascotTimer);
+      mascotFace.textContent = state;
+      mascotTimer = setTimeout(() => {
+        mascotFace.textContent = mascot.states.idle;
+      }, 1000);
+    }
+  };
+
+  const mascotEl = $('mascot');
+  mascot._hoverSaved = null;
+  mascotEl.addEventListener('mouseenter', () => {
+    if (mascotTimer) clearTimeout(mascotTimer);
+    mascot._hoverSaved = mascotFace.textContent;
+    mascotFace.textContent = "(>_<)";
+  });
+  mascotEl.addEventListener('mouseleave', () => {
+    if (mascot._hoverSaved) {
+      mascotFace.textContent = mascot._hoverSaved;
+      mascot._hoverSaved = null;
+      mascotTimer = setTimeout(() => {
+        mascotFace.textContent = mascot.states.idle;
+      }, 1000);
+    }
+  });
+
   window.addEventListener('beforeunload', saveSession);
 
   const restored = loadSession();
   theme.init();
+  mascot.set(mascot.states.idle);
   if (restored) {
     showContent();
     selectFile(activeIdx);
